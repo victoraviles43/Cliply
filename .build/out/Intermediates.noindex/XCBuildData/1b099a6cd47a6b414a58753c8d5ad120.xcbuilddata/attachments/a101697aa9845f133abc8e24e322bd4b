@@ -1,0 +1,16 @@
+{
+  "" : {
+    "const-values" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary.swiftconstvalues",
+    "dependencies" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary.d",
+    "diagnostics" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary.dia",
+    "emit-module-dependencies" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary-emit-module.dia",
+    "pch" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/Portapapeles-primary.swiftdeps"
+  },
+  "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/MyApp.swift" : {
+    "index-unit-output-path" : "/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/MyApp.o",
+    "llvm-bc" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/MyApp.bc",
+    "object" : "/Volumes/MacOSXE/Documents/Code/Xcode/appMac/.build/out/Intermediates.noindex/Portapapeles.build/Release/Portapapeles-p.build/Objects-normal/arm64/MyApp.o"
+  }
+}

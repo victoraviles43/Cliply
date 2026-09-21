@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Target 'AllExcludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'Portapapeles-product' in project 'Portapapeles'
+Target 'Portapapeles-product' in project 'Portapapeles' (no dependencies)
