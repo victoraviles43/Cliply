@@ -9,3 +9,4 @@ cp .build/release/Portapapeles "${app_path}/Contents/MacOS/Portapapeles"
 cp Info.plist "${app_path}/Contents/Info.plist"
 codesign --force --sign - "${app_path}"
 echo "App creada: ${app_path}"
+
