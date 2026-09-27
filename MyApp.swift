@@ -23,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = ClipboardController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if ProcessInfo.processInfo.arguments.contains("--dark-preview") {
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
         controller.start()
         if ProcessInfo.processInfo.arguments.contains("--show") {
             controller.showPanel()
@@ -203,7 +206,11 @@ final class ClipboardController: ObservableObject {
             panel.title = "Portapapeles"
             panel.titleVisibility = .hidden
             panel.titlebarAppearsTransparent = true
-            panel.standardWindowButton(.closeButton)?.isHidden = true
+            panel.titlebarSeparatorStyle = .none
+            panel.standardWindowButton(.closeButton)?.isHidden = false
+            panel.standardWindowButton(.closeButton)?.isEnabled = true
+            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            panel.standardWindowButton(.zoomButton)?.isHidden = true
             panel.isMovableByWindowBackground = true
             panel.isFloatingPanel = true
             panel.level = .floating
@@ -365,11 +372,22 @@ private enum PanelTab: String, CaseIterable {
 
 private struct ClipboardPanelView: View {
     @ObservedObject var controller: ClipboardController
+    @Environment(\.colorScheme) private var colorScheme
     @State private var tab: PanelTab = .clipboard
     @State private var query = ""
     @State private var emojiCategory = "Todos"
     @FocusState private var searchFocused: Bool
     private let accent = Color(red: 0.08, green: 0.43, blue: 0.83)
+
+    private var panelGradient: [Color] {
+        colorScheme == .dark
+            ? [Color(red: 0.10, green: 0.12, blue: 0.16), Color(red: 0.12, green: 0.19, blue: 0.25)]
+            : [Color(red: 0.97, green: 0.985, blue: 1), Color(red: 0.86, green: 0.93, blue: 1)]
+    }
+
+    private var raisedBackground: Color {
+        colorScheme == .dark ? Color.white.opacity(0.09) : Color.white.opacity(0.90)
+    }
 
     private var filteredItems: [ClipboardItem] {
         guard !query.isEmpty else { return controller.items }
@@ -414,29 +432,22 @@ private struct ClipboardPanelView: View {
                     .accessibilityLabel(option.rawValue)
                 }
                 Spacer()
-                Button { controller.hidePanel() } label: {
-                    Image(systemName: "xmark").font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.black.opacity(0.65))
-                        .frame(width: 26, height: 26)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cerrar")
             }
             .padding(.horizontal, 18)
 
             HStack {
                 Text(tab.rawValue)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.12, green: 0.17, blue: 0.24))
+                    .foregroundStyle(.primary)
                 Spacer()
                 if tab == .clipboard {
                     Button { controller.clearHistory() } label: {
                         Text("Borrar recientes")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color(red: 0.17, green: 0.23, blue: 0.31))
+                            .foregroundStyle(.primary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 6))
+                            .background(raisedBackground, in: RoundedRectangle(cornerRadius: 6))
                     }
                         .buttonStyle(.plain)
                         .disabled(!controller.items.contains { !$0.isPinned })
@@ -450,7 +461,7 @@ private struct ClipboardPanelView: View {
                     .foregroundStyle(Color.gray)
                 TextField("", text: $query, prompt: Text(tab == .clipboard ? "Buscar en el historial" : "Buscar emojis").foregroundColor(.gray))
                     .textFieldStyle(.plain)
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(.primary)
                     .focused($searchFocused)
                     .onSubmit {
                         if tab == .clipboard, let first = filteredItems.first { controller.select(first) }
@@ -459,8 +470,8 @@ private struct ClipboardPanelView: View {
             }
             .padding(.horizontal, 11)
             .frame(height: 33)
-            .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.black.opacity(0.08)))
+            .background(raisedBackground, in: RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.10)))
             .padding(.horizontal, 18)
 
             if tab == .clipboard {
@@ -475,7 +486,7 @@ private struct ClipboardPanelView: View {
                         .foregroundStyle(.orange)
                     Text("Permite Accesibilidad para pegar automáticamente")
                         .font(.caption)
-                        .foregroundStyle(Color.black.opacity(0.7))
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Button("Activar") { controller.requestAutomaticPastePermission() }
                         .buttonStyle(.borderedProminent)
@@ -487,7 +498,7 @@ private struct ClipboardPanelView: View {
             HStack {
                 Text(controller.canPasteAutomatically ? "Pegado automático activo · selecciona para pegar" : "Mientras tanto, el elemento queda listo para pegar con ⌘V")
                     .font(.caption)
-                    .foregroundStyle(Color.black.opacity(0.55))
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
             .padding(.horizontal, 18)
@@ -496,7 +507,7 @@ private struct ClipboardPanelView: View {
         .frame(width: 430, height: 560)
         .background {
             LinearGradient(
-                colors: [Color(red: 0.97, green: 0.985, blue: 1), Color(red: 0.86, green: 0.93, blue: 1)],
+                colors: panelGradient,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -537,10 +548,10 @@ private struct ClipboardPanelView: View {
                         Button(category) { emojiCategory = category }
                             .buttonStyle(.plain)
                             .font(.caption.weight(emojiCategory == category ? .semibold : .regular))
-                            .foregroundStyle(emojiCategory == category ? .white : Color.black.opacity(0.7))
+                            .foregroundStyle(emojiCategory == category ? .white : Color.primary.opacity(0.75))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(emojiCategory == category ? accent : .white.opacity(0.7), in: Capsule())
+                            .background(emojiCategory == category ? accent : raisedBackground, in: Capsule())
                     }
                 }
                 .padding(.horizontal, 16)
@@ -559,7 +570,7 @@ private struct ClipboardPanelView: View {
                                     .font(.system(size: 27))
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 48)
-                                    .background(.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 9))
+                                    .background(raisedBackground, in: RoundedRectangle(cornerRadius: 9))
                             }
                             .buttonStyle(.plain)
                             .help(entry.name)
@@ -578,6 +589,11 @@ private struct ClipboardPanelView: View {
 private struct ClipboardCard: View {
     let item: ClipboardItem
     @ObservedObject var controller: ClipboardController
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color.white.opacity(0.085) : Color.white.opacity(0.94)
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -600,7 +616,7 @@ private struct ClipboardCard: View {
                     case .text, .files:
                         Text(item.title)
                             .font(.system(size: 14))
-                            .foregroundStyle(Color(red: 0.13, green: 0.17, blue: 0.23))
+                            .foregroundStyle(.primary)
                             .lineLimit(3)
                             .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
                     }
@@ -619,13 +635,13 @@ private struct ClipboardCard: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.black.opacity(0.62))
+                        .foregroundStyle(.secondary)
                         .frame(width: 24, height: 24)
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .frame(width: 24, height: 24)
-                .tint(Color.black.opacity(0.62))
+                .tint(.secondary)
                 .help("Más opciones")
 
                 Button { controller.togglePin(item) } label: {
@@ -640,11 +656,11 @@ private struct ClipboardCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(.white.opacity(0.94), in: RoundedRectangle(cornerRadius: 9))
+        .background(cardBackground, in: RoundedRectangle(cornerRadius: 9))
         .overlay {
             RoundedRectangle(cornerRadius: 9)
-                .strokeBorder(item.isPinned ? Color.blue.opacity(0.7) : Color.black.opacity(0.09), lineWidth: item.isPinned ? 1.5 : 1)
+                .strokeBorder(item.isPinned ? Color.blue.opacity(0.75) : Color.primary.opacity(0.11), lineWidth: item.isPinned ? 1.5 : 1)
         }
-        .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.08), radius: 2, y: 1)
     }
 }

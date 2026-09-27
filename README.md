@@ -4,6 +4,8 @@ Una app de barra de menús que muestra los últimos 10 elementos copiados con **
 
 El panel tiene dos pestañas: **Portapapeles** y **Emojis**. La pestaña de emojis incluye categorías y búsqueda; al elegir uno, queda listo para pegar y también aparece en el historial.
 
+La interfaz sigue automáticamente la apariencia clara u oscura de macOS. La ventana usa únicamente el botón rojo estándar para cerrarse; la app continúa disponible desde la barra de menús para mantener el historial activo.
+
 Puedes **anclar** cualquier elemento con la chincheta de su tarjeta. Los anclados se muestran primero y se conservan al borrar los recientes. Se guardan hasta 10 elementos **sin anclar**; al copiar uno más, se elimina el más antiguo de ese grupo. El menú de tres puntos de cada tarjeta permite anclar, desanclar o eliminar ese elemento.
 
 Todo el historial, incluidos los anclados, vive en memoria durante la sesión de la app. Se pierde al cerrarla. Si vuelves a copiar un elemento existente, este sube al principio de su grupo.
