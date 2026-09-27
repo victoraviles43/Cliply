@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Carbon
 import CryptoKit
 import SwiftUI
@@ -33,15 +34,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class ClipboardController: ObservableObject {
     @Published private(set) var items: [ClipboardItem] = []
     @Published private(set) var hotKeyError: String?
+    @Published private(set) var canPasteAutomatically = AXIsProcessTrusted()
 
     private let pasteboard = NSPasteboard.general
     private var previousChangeCount = 0
     private var timer: Timer?
     private var hotKey: GlobalHotKey?
     private var panel: ClipboardPanel?
-    private weak var previousApp: NSRunningApplication?
+    private var previousApp: NSRunningApplication?
+    private var lastExternalApp: NSRunningApplication?
+    private var activationObserver: NSObjectProtocol?
 
     func start() {
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            MainActor.assumeIsolated {
+                if app.bundleIdentifier != Bundle.main.bundleIdentifier {
+                    self?.lastExternalApp = app
+                }
+            }
+        }
         previousChangeCount = pasteboard.changeCount
         captureCurrentPasteboard()
         timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
@@ -104,7 +120,7 @@ final class ClipboardController: ObservableObject {
             items.insert(item, at: items.filter(\.isPinned).count)
             trimRecentItems()
         }
-        hidePanel()
+        pasteIntoPreviousApp()
     }
 
     func selectEmoji(_ emoji: String) {
@@ -112,7 +128,60 @@ final class ClipboardController: ObservableObject {
         pasteboard.setString(emoji, forType: .string)
         previousChangeCount = pasteboard.changeCount
         captureCurrentPasteboard()
-        hidePanel()
+        pasteIntoPreviousApp()
+    }
+
+    func requestAutomaticPastePermission() {
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        refreshAutomaticPastePermission()
+    }
+
+    private func refreshAutomaticPastePermission() {
+        canPasteAutomatically = AXIsProcessTrusted()
+    }
+
+    private func pasteIntoPreviousApp() {
+        let target = previousApp ?? lastExternalApp
+        panel?.orderOut(nil)
+        previousApp = nil
+
+        guard let target,
+              target.bundleIdentifier != Bundle.main.bundleIdentifier,
+              !target.isTerminated else { return }
+
+        refreshAutomaticPastePermission()
+        guard canPasteAutomatically else {
+            requestAutomaticPastePermission()
+            return
+        }
+        target.activate()
+        waitUntilActiveAndPaste(into: target, attempt: 0)
+    }
+
+    private func waitUntilActiveAndPaste(into target: NSRunningApplication, attempt: Int) {
+        guard !target.isTerminated else { return }
+        let isActive = NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
+        if isActive {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) { [weak self] in
+                self?.sendPasteShortcut(to: target.processIdentifier)
+            }
+        } else if attempt < 15 {
+            target.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+                self?.waitUntilActiveAndPaste(into: target, attempt: attempt + 1)
+            }
+        }
+    }
+
+    private func sendPasteShortcut(to processIdentifier: pid_t) {
+        guard let source = CGEventSource(stateID: .combinedSessionState),
+              let keyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else { return }
+        keyDown.flags = .maskCommand
+        keyUp.flags = .maskCommand
+        keyDown.postToPid(processIdentifier)
+        keyUp.postToPid(processIdentifier)
     }
 
     func togglePanel() {
@@ -121,7 +190,9 @@ final class ClipboardController: ObservableObject {
 
     func showPanel() {
         checkPasteboard()
-        previousApp = NSWorkspace.shared.frontmostApplication
+        refreshAutomaticPastePermission()
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        previousApp = frontmost?.bundleIdentifier == Bundle.main.bundleIdentifier ? lastExternalApp : frontmost
         if panel == nil {
             let panel = ClipboardPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 430, height: 560),
@@ -268,6 +339,9 @@ private struct ClipboardMenu: View {
     var body: some View {
         Button("Abrir historial  ⌃Espacio") { controller.showPanel() }
         if let error = controller.hotKeyError { Text(error) }
+        if !controller.canPasteAutomatically {
+            Button("Activar pegado automático…") { controller.requestAutomaticPastePermission() }
+        }
         Divider()
         Text("\(controller.items.filter { !$0.isPinned }.count)/10 recientes · \(controller.items.filter(\.isPinned).count) anclados")
         Button("Borrar recientes") { controller.clearHistory() }
@@ -395,8 +469,23 @@ private struct ClipboardPanelView: View {
                 emojiContent
             }
 
+            if !controller.canPasteAutomatically {
+                HStack(spacing: 9) {
+                    Image(systemName: "hand.raised.fill")
+                        .foregroundStyle(.orange)
+                    Text("Permite Accesibilidad para pegar automáticamente")
+                        .font(.caption)
+                        .foregroundStyle(Color.black.opacity(0.7))
+                    Spacer()
+                    Button("Activar") { controller.requestAutomaticPastePermission() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+                .padding(.horizontal, 18)
+            }
+
             HStack {
-                Text(tab == .clipboard ? "Selecciona un elemento y pulsa ⌘V para pegarlo" : "Selecciona un emoji y pulsa ⌘V para pegarlo")
+                Text(controller.canPasteAutomatically ? "Pegado automático activo · selecciona para pegar" : "Mientras tanto, el elemento queda listo para pegar con ⌘V")
                     .font(.caption)
                     .foregroundStyle(Color.black.opacity(0.55))
                 Spacer()
